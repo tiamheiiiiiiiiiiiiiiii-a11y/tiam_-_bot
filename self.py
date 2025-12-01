@@ -3,7 +3,13 @@ from telethon import TelegramClient, events, Button
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PhoneNumberInvalidError, PasswordHashInvalidError
 from self_config import self_config
 
-cfg = self_config()
+class Cfg:
+    api_id = 24645053
+    api_hash = "88c0167b74a24fac0a85c26c1f6d1991"
+    bot_token = "
+    8314662501:AAENsAlvyeGQJgxa2lvN-JI8VcDyes4nn_0"
+
+cfg = Cfg()
 
 # مسیر ذخیره داده‌ها روی Render
 USER_DATA_DIR = os.path.join(os.getcwd(), "user_data")
