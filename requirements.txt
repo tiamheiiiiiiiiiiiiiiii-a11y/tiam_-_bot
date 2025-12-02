@@ -1,4 +1,4 @@
-
+libsqlclient
 requests
 flask
 telethon
