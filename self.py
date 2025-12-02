@@ -6,8 +6,7 @@ from self_config import self_config
 class Cfg:
     api_id = 24645053
     api_hash = "88c0167b74a24fac0a85c26c1f6d1991"
-    bot_token = "
-    8314662501:AAENsAlvyeGQJgxa2lvN-JI8VcDyes4nn_0"
+    bot_token = "8314662501:AAENsAlvyeGQJgxa2lvN-JI8VcDyes4nn_0"
 
 cfg = Cfg()
 
