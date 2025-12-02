@@ -1,4 +1,4 @@
-libsqlclient
+turso-python
 requests
 flask
 telethon
