@@ -5,3 +5,4 @@ telethon
 cryptg
 python-dotenv
 asyncio
+libsql
