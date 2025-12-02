@@ -25,28 +25,15 @@ BOT_CLIENT = TelegramClient("bot", cfg.api_id, cfg.api_hash).start(bot_token=cfg
 
 
 # ========= USER STORAGE =========
-
 def get_user_file(user_id):
     return os.path.join(USER_DATA_DIR, f"{user_id}.json")
-
 
 def load_user_data(user_id):
     fp = get_user_file(user_id)
     if os.path.exists(fp):
         with open(fp, "r", encoding="utf-8") as fr:
             return json.load(fr)
-
-    return {
-        "profile": {
-            "name": "کاربر",
-            "id": user_id,
-            "username": "",
-            "role": "عادی"
-        },
-        "access_token": None,
-        "active": False
-    }
-
+    return {"profile":{"name":"کاربر","id":user_id,"username":"","role":"عادی"},"access_token":None,"active":False}
 
 def save_user_data(user_id, data):
     fp = get_user_file(user_id)
@@ -55,7 +42,6 @@ def save_user_data(user_id, data):
 
 
 # ========= START PANEL =========
-
 @BOT_CLIENT.on(events.NewMessage(pattern="/start"))
 async def start_panel(event):
     user_id = event.message.sender_id
@@ -76,77 +62,41 @@ async def start_panel(event):
         [Button.inline("فعال‌سازی ربات", b"buy")]
     ]
 
-    await event.respond(
-        f"سلام {data['profile'].get('name')} 👋\nبه پنل خوش اومدی",
-        buttons=buttons
-    )
+    await event.respond(f"سلام {data['profile'].get('name')} 👋\nبه پنل خوش اومدی", buttons=buttons)
 
 
 # ========= CALLBACK HANDLER =========
-
 @BOT_CLIENT.on(events.CallbackQuery)
 async def callback_handler(event):
     user_id = event.query.user_id
     data = load_user_data(user_id)
-
     btn = event.data.decode("utf-8")
 
-    # ---------- PROFILE ----------
     if btn == "profile":
         p = data["profile"]
         await event.edit(
-            f"""🧑 پروفایل شما:
-
-اسم: {p.get('name')}
-آیدی عددی: {p.get('id')}
-یوزرنیم: @{p.get('username')}
-نقش: {p.get('role')}
-فعال: {"✅" if data.get("active") else "❌"}
-"""
+            f"🧑 پروفایل شما:\n\nاسم: {p.get('name')}\nآیدی: {p.get('id')}\nیوزرنیم: @{p.get('username')}\nنقش: {p.get('role')}\nفعال: {'✅' if data.get('active') else '❌'}"
         )
 
-    # ---------- STATUS ----------
     elif btn == "bot_status":
-        if data.get("active"):
-            msg = "✅ ربات شما فعال است"
-        else:
-            msg = "❌ ربات شما هنوز فعال نشده"
+        msg = "✅ ربات شما فعال است" if data.get("active") else "❌ ربات شما هنوز فعال نشده"
         await event.edit(msg)
 
-    # ---------- LOGIN ----------
     elif btn == "buy":
-
         login_link = f"{cfg.login_server}/?uid={user_id}"
-
-        await event.edit(
-            f"""🔐 برای فعال‌سازی ربات:
-
-1️⃣ روی لینک زیر بزن
-2️⃣ شماره‌ات رو وارد کن
-3️⃣ کد تأیید رو بزن
-4️⃣ برگرد به ربات و «بررسی وضعیت» بزن
-
-🌐 لینک ورود:
-{login_link}
-
-بعد از لاگین برگرد و روی «وضعیت ربات» بزن ✅
-"""
-        )
+        await event.edit(f"🔐 برای فعال‌سازی ربات:\n\n1️⃣ روی لینک بزن\n2️⃣ شماره خودت رو وارد کن\n3️⃣ کد تأیید رو بزن\n4️⃣ برگرد و روی «وضعیت ربات» بزن\n\n🌐 لینک ورود:\n{login_link}")
 
 
 # ========= AUTO CHECK LOGIN (BACKGROUND) =========
-
 async def check_users_activation():
     while True:
         await asyncio.sleep(10)
-
         for filename in os.listdir(USER_DATA_DIR):
             if not filename.endswith(".json"):
                 continue
 
             user_id = filename.replace(".json", "")
             data = load_user_data(user_id)
-
             if data.get("active"):
                 continue
 
@@ -154,27 +104,20 @@ async def check_users_activation():
                 r = requests.get(f"{cfg.login_server}/check/{user_id}", timeout=5)
                 if r.status_code == 200:
                     res = r.json()
-
                     if res.get("status") == "verified":
                         data["active"] = True
                         data["access_token"] = res.get("access_token")
                         save_user_data(user_id, data)
-
-                        await BOT_CLIENT.send_message(
-                            int(user_id),
-                            "✅ ربات شما با موفقیت فعال شد!"
-                        )
+                        await BOT_CLIENT.send_message(int(user_id), "✅ ربات شما با موفقیت فعال شد!")
             except:
                 pass
 
 
 # ========= RUN =========
-
 async def main():
     asyncio.create_task(check_users_activation())
     print("🤖 Bot is running on Render...")
     await BOT_CLIENT.run_until_disconnected()
-
 
 if __name__ == "__main__":
     BOT_CLIENT.loop.run_until_complete(main())
