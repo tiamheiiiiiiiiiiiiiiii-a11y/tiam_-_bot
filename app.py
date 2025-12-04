@@ -1,5 +1,5 @@
 # ============================================================
-# self_login_server_mongo_render.py — نسخه کامل برای Render
+# self_login_server_mongo_fixed.py — نسخه کامل و اصلاح‌شده
 # ============================================================
 
 import os
@@ -7,6 +7,7 @@ import json
 import asyncio
 import threading
 from datetime import datetime
+from time import sleep
 import base64
 
 from flask import Flask, request, jsonify, render_template_string
@@ -20,7 +21,8 @@ from telethon.errors import (
 )
 
 from Crypto.Cipher import AES
-from pymongo import MongoClient, errors
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 
 from self_config import self_config
 CONF = self_config()
@@ -31,22 +33,26 @@ CONF = self_config()
 
 api_id = int(CONF.api_id)
 api_hash = CONF.api_hash
-SESSION_SECRET = b"1234567890ABCDEF1234567890ABCDEF"  # دقیقاً 32 بایت
+
+# کلید باید دقیقاً 32 بایت باشد
+SESSION_SECRET = b"1234567890ABCDEF1234567890ABCDEF"
 
 # ============================================================
 # CONFIG MONGO
 # ============================================================
 
 MONGO_URI = "mongodb://self_login:tiam_jinx@ac-nbipb9g-shard-00-00.v2vzh9e.mongodb.net:27017,ac-nbipb9g-shard-00-01.v2vzh9e.mongodb.net:27017,ac-nbipb9g-shard-00-02.v2vzh9e.mongodb.net:27017/?replicaSet=atlas-qppgrd-shard-0&ssl=true&authSource=admin"
-mongo_client = None
-try:
-    mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
-    mongo_client.admin.command("ping")
-except errors.ServerSelectionTimeoutError as e:
-    print(f"[MongoDB] Connection failed: {e}")
 
-db = mongo_client["telegram_sessions"] if mongo_client else None
-sessions_collection = db["sessions"] if db else None
+try:
+    mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    mongo_client.admin.command("ping")  # بررسی واقعی اتصال
+    db = mongo_client["telegram_sessions"]
+    sessions_collection = db["sessions"]
+    print("[MongoDB] Connected ✅")
+except ConnectionFailure as e:
+    db = None
+    sessions_collection = None
+    print("[MongoDB] Connection failed:", e)
 
 # ============================================================
 # APP
@@ -105,8 +111,8 @@ def decrypt_bytes(data_str: str) -> bytes:
 # ============================================================
 
 def save_session_mongo(account: str, phone: str, session_str: str):
-    if not sessions_collection:
-        log("[MongoDB] Collection not initialized, session not saved.")
+    if sessions_collection is None:
+        log("Cannot save session: MongoDB not connected")
         return
     enc = encrypt_bytes(session_str.encode())
     data = {
@@ -122,7 +128,7 @@ def save_session_mongo(account: str, phone: str, session_str: str):
     )
 
 def load_session_mongo(account: str, phone: str):
-    if not sessions_collection:
+    if sessions_collection is None:
         return None
     doc = sessions_collection.find_one({"account_name": account, "phone": phone})
     if doc and "session_data" in doc:
@@ -156,6 +162,7 @@ def can_send_now(phone: str) -> bool:
     return True
 
 def build_username(me):
+    # تغییر: اولویت نمایش username، بعد first_name و last_name
     if getattr(me, "username", None):
         return me.username
     if getattr(me, "first_name", None) and getattr(me, "last_name", None):
@@ -246,12 +253,14 @@ def send_code():
             result = await client.send_code_request(phone)
             PENDING_LOGIN[(account, phone)] = client
             return {"ok": True, "message": "کد ارسال شد ✅"}
-        except (PhoneNumberInvalidError, AuthRestartError):
-            return {"ok": False, "message": "شماره نامعتبر است یا دوباره امتحان کنید"}
+        except PhoneNumberInvalidError:
+            return {"ok": False, "message": "شماره نامعتبر است"}
         except FloodWaitError as e:
             return {"ok": False, "message": f"{e.seconds} ثانیه صبر کنید"}
+        except AuthRestartError:
+            return {"ok": False, "message": "تلگرام خطای داخلی دارد، دوباره امتحان کنید"}
         except Exception as e:
-            log(e)
+            log(f"send_code error for {phone}: {e}")
             return {"ok": False, "message": "خطا در ارسال کد"}
 
     future = asyncio.run_coroutine_threadsafe(runner(), GLOBAL_LOOP)
@@ -276,7 +285,7 @@ def verify_code():
         except SessionPasswordNeededError:
             return {"ok": True, "need_password": True, "message": "رمز دوم لازم است"}
         except Exception as e:
-            log(e)
+            log(f"verify_code error for {phone}: {e}")
             return {"ok": False, "message": "خطا در تایید کد"}
 
         me = await client.get_me()
@@ -310,7 +319,7 @@ def verify_password():
             if key in PENDING_LOGIN: del PENDING_LOGIN[key]
             return {"ok": True, "message": f"با موفقیت وارد شدید ✅ {username}"}
         except Exception as e:
-            log(e)
+            log(f"verify_password error for {phone}: {e}")
             return {"ok": False, "message": "رمز دوم اشتباه است"}
 
     future = asyncio.run_coroutine_threadsafe(runner(), GLOBAL_LOOP)
@@ -322,4 +331,4 @@ def verify_password():
 
 if __name__ == "__main__":
     log("SERVER STARTED → listening on 0.0.0.0:5000")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
