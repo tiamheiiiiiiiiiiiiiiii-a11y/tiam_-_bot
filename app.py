@@ -37,7 +37,7 @@ SESSION_SECRET = b"1234567890ABCDEF1234567890ABCDEF"  # دقیقاً 32 بایت
 # CONFIG MONGO
 # ============================================================
 
-MONGO_URI = "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/telegram_sessions?retryWrites=true&w=majority"
+MONGO_URI = "mongodb://self_login:tiam_jinx@ac-nbipb9g-shard-00-00.v2vzh9e.mongodb.net:27017,ac-nbipb9g-shard-00-01.v2vzh9e.mongodb.net:27017,ac-nbipb9g-shard-00-02.v2vzh9e.mongodb.net:27017/?replicaSet=atlas-qppgrd-shard-0&ssl=true&authSource=admin"
 mongo_client = None
 try:
     mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
